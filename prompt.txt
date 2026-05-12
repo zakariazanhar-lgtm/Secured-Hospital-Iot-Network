@@ -1,0 +1,1 @@
+Explain this hospital IDS alert in one short sentence for hospital staff. Patient ID PAT-001, patient name Aslah Kader, device ID HRM-ICU-01, status ATTACK DETECTED, anomaly score 0.09706977233848946, mention it has a high anomaly score

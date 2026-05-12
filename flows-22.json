@@ -1,0 +1,1289 @@
+[
+    {
+        "id": "464d08b033e59563",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "e6983e4633a782a7",
+        "type": "inject",
+        "z": "464d08b033e59563",
+        "name": "HR Sensor",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "7",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 540,
+        "wires": [
+            [
+                "39b9f20eb33a5f4b",
+                "f8717b9f1238b540",
+                "e9b1a230145033e6"
+            ]
+        ]
+    },
+    {
+        "id": "0c3292c9bcfd794d",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "HR Encryption",
+        "func": "if (!msg.payload || typeof msg.payload !== \"object\") {\n    node.warn(\"Invalid payload for encryption\");\n    return null;\n}\n\nconst CryptoJS = global.get(\"CryptoJS\");\nconst key = CryptoJS.SHA256(\"hospital-secure-key\");\n\nconst iv = CryptoJS.lib.WordArray.random(16);\n\nconst encrypted = CryptoJS.AES.encrypt(\n    JSON.stringify(msg.payload),\n    key,\n    {\n        iv,\n        mode: CryptoJS.mode.CBC,\n        padding: CryptoJS.pad.Pkcs7\n    }\n);\n\nmsg.payload = {\n    _encrypted: true,\n    encryptedData: encrypted.ciphertext.toString(CryptoJS.enc.Base64),\n    iv: iv.toString(CryptoJS.enc.Base64)\n};\n\nreturn msg;\n\n\n\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 540,
+        "wires": [
+            [
+                "b5d8769c6c5c75d3"
+            ]
+        ]
+    },
+    {
+        "id": "b5d8769c6c5c75d3",
+        "type": "mqtt out",
+        "z": "464d08b033e59563",
+        "name": "",
+        "topic": "hospital/icu/heartrate/HRM-ICU-01",
+        "qos": "2",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "86d7dae9ed4b402d",
+        "x": 740,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "bf17bffdd4d85669",
+        "type": "mqtt in",
+        "z": "464d08b033e59563",
+        "name": "",
+        "topic": "hospital/icu/heartrate/HRM-ICU-01",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "86d7dae9ed4b402d",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 180,
+        "y": 700,
+        "wires": [
+            [
+                "cd364cd17a00668f"
+            ]
+        ]
+    },
+    {
+        "id": "cd364cd17a00668f",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "HR Decryption",
+        "func": "const CryptoJS = global.get(\"CryptoJS\");\nconst key = CryptoJS.SHA256(\"hospital-secure-key\");\n\nlet p = msg.payload;\nif (Buffer.isBuffer(p)) p = p.toString(\"utf8\");\nif (typeof p === \"string\") p = JSON.parse(p);\n\nif (!p._encrypted || !p.encryptedData || !p.iv) {\n    node.warn(\"Skipping non-encrypted message\");\n    return null;\n}\n\nconst decrypted = CryptoJS.AES.decrypt(\n    {\n        ciphertext: CryptoJS.enc.Base64.parse(p.encryptedData)\n    },\n    key,\n    {\n        iv: CryptoJS.enc.Base64.parse(p.iv),\n        mode: CryptoJS.mode.CBC,\n        padding: CryptoJS.pad.Pkcs7\n    }\n);\n\nconst text = decrypted.toString(CryptoJS.enc.Utf8);\nif (!text) {\n    node.error(\"Decryption failed\");\n    return null;\n}\n\nmsg.payload = JSON.parse(text);\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 480,
+        "y": 700,
+        "wires": [
+            [
+                "f8a91404060ee673"
+            ]
+        ]
+    },
+    {
+        "id": "39b9f20eb33a5f4b",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "HR Device",
+        "func": "const deviceId = \"HRM-ICU-01\";\nconst patientId = \"PAT-001\";\nconst patientName = \"Aslah Kader\";\n\nconst heartRate = Math.floor(Math.random() * (85 - 65 + 1)) + 80;\n\nmsg.payload = {\n    deviceId,\n    patientId,\n    patientName,\n    data: { heartRate, unit: \"bpm\" },\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "\nif (typeof msg !== \"undefined\") {\n    msg.payload = null;\n}\n",
+        "libs": [],
+        "x": 310,
+        "y": 500,
+        "wires": [
+            [
+                "f65f6ba1629e83e7"
+            ]
+        ]
+    },
+    {
+        "id": "f8717b9f1238b540",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "HR Device",
+        "func": "const deviceId = \"HRM-ICU-02\";\nconst patientId = \"PAT-002\";\nconst patientName = \"Zakariya Zanhar\";\n\nconst heartRate = Math.floor(Math.random() * (95 - 75 + 1)) + 80;\n\nmsg.payload = {\n    deviceId,\n    patientId,\n    patientName,\n    data: { heartRate, unit: \"bpm\" },\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "\nif (typeof msg !== \"undefined\") {\n    msg.payload = null;\n}\n",
+        "libs": [],
+        "x": 310,
+        "y": 540,
+        "wires": [
+            [
+                "0c3292c9bcfd794d"
+            ]
+        ]
+    },
+    {
+        "id": "e9b1a230145033e6",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "HR Device",
+        "func": "const deviceId = \"HRM-ICU-03\";\nconst patientId = \"PAT-003\";\nconst patientName = \"Moayed\";\n\nconst heartRate = Math.floor(Math.random() * (80 - 60 + 1)) + 80;\n\nmsg.payload = {\n    deviceId,\n    patientId,\n    patientName,\n    data: { heartRate, unit: \"bpm\" },\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "\nif (typeof msg !== \"undefined\") {\n    msg.payload = null;\n}\n",
+        "libs": [],
+        "x": 310,
+        "y": 580,
+        "wires": [
+            [
+                "0c3292c9bcfd794d"
+            ]
+        ]
+    },
+    {
+        "id": "f8a91404060ee673",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "Mapper",
+        "func": "const p = msg.payload;\n\nmsg.hr = p.data?.heartRate ?? 0;  \n\nmsg.payload = {\n    device_id: p.deviceId,\n    patient_id: p.patientId,\n    patient_name: p.patientName,\n    timestamp: p.timestamp || new Date().toISOString(),\n    heart_rate: msg.hr,\n    spo2: 0\n};\n\n\nreturn msg;\n\n\n\n\n\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 660,
+        "y": 700,
+        "wires": [
+            [
+                "de1cce35b01f45a4",
+                "5cd492d3fcb774f9"
+            ]
+        ]
+    },
+    {
+        "id": "de1cce35b01f45a4",
+        "type": "switch",
+        "z": "464d08b033e59563",
+        "name": "",
+        "property": "payload.patient_id",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "PAT-001",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "PAT-002",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "PAT-003",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 710,
+        "y": 820,
+        "wires": [
+            [
+                "2b4d7788f6d271f2"
+            ],
+            [
+                "aa5e1d4305b3cb0d"
+            ],
+            [
+                "fad9dcec699908e7"
+            ]
+        ]
+    },
+    {
+        "id": "aa5e1d4305b3cb0d",
+        "type": "ui-gauge",
+        "z": "464d08b033e59563",
+        "name": "PT 2",
+        "group": "1c0126acaec0d7a2",
+        "order": 2,
+        "value": "hr",
+        "valueType": "msg",
+        "width": "4",
+        "height": "4",
+        "gtype": "gauge-half",
+        "gstyle": "needle",
+        "title": "PAT-002 Heart Rate",
+        "alwaysShowTitle": false,
+        "floatingTitlePosition": "top-left",
+        "units": "bpm",
+        "icon": "",
+        "prefix": "",
+        "suffix": "",
+        "segments": [
+            {
+                "from": "60",
+                "color": "#5cd65c",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "100",
+                "color": "#ffc800",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "120",
+                "color": "#ea5353",
+                "text": "",
+                "textType": "label"
+            }
+        ],
+        "min": "60",
+        "max": "140",
+        "sizeThickness": 16,
+        "sizeGap": 4,
+        "sizeKeyThickness": 8,
+        "styleRounded": true,
+        "styleGlow": false,
+        "className": "",
+        "x": 910,
+        "y": 820,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "fad9dcec699908e7",
+        "type": "ui-gauge",
+        "z": "464d08b033e59563",
+        "name": "PT 3",
+        "group": "1c0126acaec0d7a2",
+        "order": 3,
+        "value": "hr",
+        "valueType": "msg",
+        "width": "4",
+        "height": "4",
+        "gtype": "gauge-half",
+        "gstyle": "needle",
+        "title": "PAT-003 Heart Rate",
+        "alwaysShowTitle": false,
+        "floatingTitlePosition": "top-left",
+        "units": "bpm",
+        "icon": "",
+        "prefix": "",
+        "suffix": "",
+        "segments": [
+            {
+                "from": "60",
+                "color": "#5cd65c",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "100",
+                "color": "#ffc800",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "120",
+                "color": "#ea5353",
+                "text": "",
+                "textType": "label"
+            }
+        ],
+        "min": "60",
+        "max": "140",
+        "sizeThickness": 16,
+        "sizeGap": 4,
+        "sizeKeyThickness": 8,
+        "styleRounded": true,
+        "styleGlow": false,
+        "className": "",
+        "x": 910,
+        "y": 860,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "2b4d7788f6d271f2",
+        "type": "ui-gauge",
+        "z": "464d08b033e59563",
+        "name": "PT 1",
+        "group": "1c0126acaec0d7a2",
+        "order": 1,
+        "value": "hr",
+        "valueType": "msg",
+        "width": "4",
+        "height": "4",
+        "gtype": "gauge-half",
+        "gstyle": "needle",
+        "title": "PAT-001 Heart Rate",
+        "alwaysShowTitle": false,
+        "floatingTitlePosition": "top-left",
+        "units": "bpm ",
+        "icon": "",
+        "prefix": "",
+        "suffix": "",
+        "segments": [
+            {
+                "from": "60",
+                "color": "#5cd65c",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "100",
+                "color": "#ffc800",
+                "text": "",
+                "textType": "label"
+            },
+            {
+                "from": "120",
+                "color": "#ea5353",
+                "text": "",
+                "textType": "label"
+            }
+        ],
+        "min": "60",
+        "max": "140",
+        "sizeThickness": 16,
+        "sizeGap": 4,
+        "sizeKeyThickness": 8,
+        "styleRounded": true,
+        "styleGlow": false,
+        "className": "",
+        "x": 910,
+        "y": 780,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "f65f6ba1629e83e7",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "MITM Attck",
+        "func": "let ATTACK_ENABLED = global.get(\"attackEnabled\") || false;\n\nif (msg.topic === \"attack\") {\n\n    global.set(\"attackEnabled\", msg.payload);\n\n    node.warn(\"MITM Attack set to: \" + msg.payload);\n\n    return null;\n}\n\nlet payload = JSON.parse(JSON.stringify(msg.payload));\n\nconst TARGET_PATIENT = \"PAT-001\";\n\nconst FORCED_HR = Math.floor(Math.random() * (85 - 55 + 1)) + 115;\n\nconst pid = payload.patient_id || payload.patientId;\n\nif (ATTACK_ENABLED && pid === TARGET_PATIENT) {\n\n    if (payload.data && payload.data.heartRate !== undefined) {\n\n        payload.data.heartRate = FORCED_HR;\n\n    }\n\n    payload.attackFlag = true;\n\n    payload.attackType = \"MITM - Data Manipulation\";\n\n}\n\nmsg.payload = payload;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 530,
+        "y": 420,
+        "wires": [
+            [
+                "0c3292c9bcfd794d"
+            ]
+        ]
+    },
+    {
+        "id": "5f26e4392f2e554e",
+        "type": "inject",
+        "z": "464d08b033e59563",
+        "name": "Attack On",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "attack",
+        "payload": "true",
+        "payloadType": "bool",
+        "x": 280,
+        "y": 380,
+        "wires": [
+            [
+                "f65f6ba1629e83e7"
+            ]
+        ]
+    },
+    {
+        "id": "e6b9f34aa2f241bb",
+        "type": "inject",
+        "z": "464d08b033e59563",
+        "name": "Attack Off",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "attack",
+        "payload": "false",
+        "payloadType": "bool",
+        "x": 280,
+        "y": 420,
+        "wires": [
+            [
+                "f65f6ba1629e83e7"
+            ]
+        ]
+    },
+    {
+        "id": "5cd492d3fcb774f9",
+        "type": "mqtt out",
+        "z": "464d08b033e59563",
+        "name": "",
+        "topic": "hospital/icu/ids/input",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "86d7dae9ed4b402d",
+        "x": 900,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "21035ad0b661467d",
+        "type": "mqtt in",
+        "z": "464d08b033e59563",
+        "name": "",
+        "topic": "hospital/icu/ids/alerts",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "86d7dae9ed4b402d",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 80,
+        "wires": [
+            [
+                "0cfa70ea6b0b347e"
+            ]
+        ]
+    },
+    {
+        "id": "dd8ff2bd3981ba7c",
+        "type": "ui_gauge",
+        "z": "464d08b033e59563",
+        "name": "",
+        "group": "474090af273b6078",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "anomaly status",
+        "label": "units",
+        "format": "{{msg.payload.is_anomaly}}",
+        "min": "0",
+        "max": "1",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1620,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "9ec1df6a04fad826",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "Build Ollama Body",
+        "func": "let p = msg.payload;\n\nif (typeof p === \"string\") {\n    try { p = JSON.parse(p); } catch (e) {}\n}\n\nconst patientId = p.patientid || p.patient_id || \"Unknown\";\nconst patientName = p.patientname || p.patient_name || \"Unknown\";\nconst deviceId = p.deviceid || p.device_id || \"Unknown\";\nconst status = p.status || \"Unknown\";\nconst score = (p.anomalyscore ?? p.anomaly_score ?? \"N/A\");\n\nmsg.originalPayload = p;\nmsg.filename = \"//Users/zakariazanhar//Downloads//Capstone2//prompt.txt\"\nmsg.payload = `Explain this hospital IDS alert in one short sentence for hospital staff. Patient ID ${patientId}, patient name ${patientName}, device ID ${deviceId}, status ${status}, anomaly score ${score}, mention it has a high anomaly score`;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 770,
+        "y": 80,
+        "wires": [
+            [
+                "ec1c47fca35de3f8"
+            ]
+        ]
+    },
+    {
+        "id": "671151ab66e56a9e",
+        "type": "ui_text",
+        "z": "464d08b033e59563",
+        "group": "474090af273b6078",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "patient",
+        "format": "{{msg.payload.patient_name}} ({{msg.payload.patient_id}})",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1590,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "14623bb8ae9c5a92",
+        "type": "ui_text",
+        "z": "464d08b033e59563",
+        "group": "474090af273b6078",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Score / Threshold",
+        "format": "{{msg.payload.anomaly_score}} / {{msg.payload.threshold}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1630,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "a79292eb55260327",
+        "type": "ui_text",
+        "z": "464d08b033e59563",
+        "group": "474090af273b6078",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Device / Time",
+        "format": "{{msg.payload.device_id}} | {{msg.payload.timestamp}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1620,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "5344378a1b1c5f11",
+        "type": "ui_chart",
+        "z": "464d08b033e59563",
+        "name": "",
+        "group": "474090af273b6078",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "label": "chart",
+        "chartType": "line",
+        "legend": "true",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "-1",
+        "ymax": "1",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 1590,
+        "y": 20,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "f7c82b334d516c10",
+        "type": "ui-table",
+        "z": "464d08b033e59563",
+        "group": "082bbe48afb9c818",
+        "name": "IDS table",
+        "label": "",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "maxrows": "29",
+        "passthru": false,
+        "autocols": true,
+        "showSearch": true,
+        "deselect": true,
+        "selectionType": "none",
+        "columns": [],
+        "mobileBreakpoint": "sm",
+        "mobileBreakpointType": "defaults",
+        "action": "replace",
+        "className": "",
+        "x": 780,
+        "y": 20,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "1c91630183e461f6",
+        "type": "ui_text",
+        "z": "464d08b033e59563",
+        "group": "474090af273b6078",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Attack Target",
+        "format": "{{#if msg.payload.is_anomaly}} ⚠️ Attack detected on {{msg.payload.patient_name}} ({{msg.payload.patient_id}}) {{else}} ✅ Normal - {{msg.payload.patient_name}} ({{msg.payload.patient_id}}) {{/if}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1610,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "a464c290768dcb43",
+        "type": "switch",
+        "z": "464d08b033e59563",
+        "name": "",
+        "property": "payload.patient_id",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "PAT-001",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "PAT-002",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "PAT-003",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 1210,
+        "y": 40,
+        "wires": [
+            [
+                "5344378a1b1c5f11",
+                "671151ab66e56a9e",
+                "14623bb8ae9c5a92",
+                "a79292eb55260327",
+                "dd8ff2bd3981ba7c",
+                "1c91630183e461f6"
+            ],
+            [
+                "5344378a1b1c5f11",
+                "671151ab66e56a9e",
+                "14623bb8ae9c5a92",
+                "a79292eb55260327",
+                "dd8ff2bd3981ba7c",
+                "1c91630183e461f6"
+            ],
+            [
+                "5344378a1b1c5f11",
+                "671151ab66e56a9e",
+                "a79292eb55260327",
+                "14623bb8ae9c5a92",
+                "dd8ff2bd3981ba7c",
+                "1c91630183e461f6"
+            ]
+        ]
+    },
+    {
+        "id": "a80735291372c61b",
+        "type": "ui-text",
+        "z": "464d08b033e59563",
+        "group": "082bbe48afb9c818",
+        "order": 1,
+        "width": "5",
+        "height": "5",
+        "name": "AI Security Explanation",
+        "label": "AI Security Explanation",
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "style": true,
+        "font": "Arial Black,Arial Black,Gadget,sans-serif",
+        "fontSize": 16,
+        "color": "#ff0000",
+        "wrapText": true,
+        "className": "",
+        "value": "payload.ai_explanation",
+        "valueType": "msg",
+        "x": 1650,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "bbb2c0da6a4bad5b",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "LLM Response Parser",
+        "func": "let text = (msg.payload || \"\").toString().trim();\ntext = text.replace(/\\x1B\\[[0-?]*[ -/]*[@-~]/g, \"\").trim();\n\nif (!text) {\n    return null;\n}\n\nmsg.payload = msg.originalPayload || {};\nmsg.payload.ai_explanation = text;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1240,
+        "y": 300,
+        "wires": [
+            [
+                "a80735291372c61b",
+                "ec97c65af87a02e2"
+            ]
+        ]
+    },
+    {
+        "id": "ec1c47fca35de3f8",
+        "type": "file",
+        "z": "464d08b033e59563",
+        "name": "",
+        "filename": "filename",
+        "filenameType": "msg",
+        "appendNewline": false,
+        "createDir": true,
+        "overwriteFile": "true",
+        "encoding": "none",
+        "x": 980,
+        "y": 100,
+        "wires": [
+            [
+                "ecc3c90c3b0aa756"
+            ]
+        ]
+    },
+    {
+        "id": "ecc3c90c3b0aa756",
+        "type": "exec",
+        "z": "464d08b033e59563",
+        "command": "/Users/zakariazanhar/Downloads/Capstone2/run_ollama.sh ",
+        "addpay": "",
+        "append": "",
+        "useSpawn": "false",
+        "timer": "180",
+        "winHide": false,
+        "oldrc": false,
+        "name": "",
+        "x": 700,
+        "y": 320,
+        "wires": [
+            [
+                "bbb2c0da6a4bad5b"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "ec97c65af87a02e2",
+        "type": "debug",
+        "z": "464d08b033e59563",
+        "name": "debug_after_LLM Response",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1500,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "f836a1f073464ad0",
+        "type": "debug",
+        "z": "464d08b033e59563",
+        "name": "hospital/icu/ids/alerts",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 220,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "a4abd0ff4b59b7fe",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "Build IDS Table",
+        "func": "let p = msg.payload;\n\nif (typeof p === \"string\") {\n    try { p = JSON.parse(p); } catch (e) {}\n}\np = p || {};\n\nlet rows = flow.get(\"ids_rows\") || {};\n\nlet key = p.patient_id || p.device_id || (\"row_\" + Date.now());\n\n\nrows[key] = {\n    device_id: p.device_id || \"\",\n    patient_id: p.patient_id || \"\",\n    patient_name: p.patient_name || \"\",\n    timestamp: p.timestamp || \"\",\n    status: p.status || \"\",\n    is_anomaly: p.is_anomaly,\n    anomaly_score: p.anomaly_score,\n    threshold: p.threshold\n};\n\nflow.set(\"ids_rows\", rows);\n\nmsg.payload = Object.values(rows);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 580,
+        "y": 20,
+        "wires": [
+            [
+                "f7c82b334d516c10"
+            ]
+        ]
+    },
+    {
+        "id": "23f4c0e54965119e",
+        "type": "switch",
+        "z": "464d08b033e59563",
+        "d": true,
+        "name": "",
+        "property": "payload.status",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "\"ATTACK DETECTED\"",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 870,
+        "y": 1500,
+        "wires": [
+            [],
+            []
+        ]
+    },
+    {
+        "id": "36b0c6d61dde90db",
+        "type": "debug",
+        "z": "464d08b033e59563",
+        "d": true,
+        "name": "debug_after_switch",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 690,
+        "y": 1520,
+        "wires": []
+    },
+    {
+        "id": "c7622594985e328c",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "d": true,
+        "name": "LLM Prompt Builder",
+        "func": "let p = msg.payload;\n\nif (typeof p === \"string\") {\n    try { p = JSON.parse(p); } catch (e) {}\n}\np = p || {};\n\nconst patientId = p.patient_id || \"Unknown\";\nconst patientName = p.patient_name || \"Unknown\";\nconst deviceId = p.device_id || \"Unknown\";\nconst status = p.status || \"Unknown\";\nconst score = (p.anomaly_score !== undefined) ? p.anomaly_score : \"N/A\";\nconst threshold = (p.threshold !== undefined) ? p.threshold : \"N/A\";\nconst time = p.timestamp || new Date().toISOString();\n\nmsg.originalPayload = p;\n\nmsg.headers = {\n    \"Content-Type\": \"application/json\"\n};\n\nmsg.payload = {\n    model: \"llama3.2\",\n    stream: false,\n    messages: [\n        {\n            role: \"system\",\n            content: \"You are a hospital IoT cybersecurity assistant. Explain IDS alerts in simple, short language for hospital staff. Mention possible MITM or data manipulation if suspicious. Give one short recommended action. Do not give medical advice.\"\n        },\n        {\n            role: \"user\",\n            content:\n`Patient ID: ${patientId}\nPatient Name: ${patientName}\nDevice ID: ${deviceId}\nStatus: ${status}\nAnomaly Score: ${score}\nThreshold: ${threshold}\nTimestamp: ${time}\n\nExplain this alert for hospital staff in 2 short sentences.`\n        }\n    ]\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 720,
+        "y": 1400,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "af390a08ac24fe24",
+        "type": "http request",
+        "z": "464d08b033e59563",
+        "d": true,
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://127.0.0.1:11434/api/chat",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 770,
+        "y": 1340,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "d22ac4bec70e3f71",
+        "type": "debug",
+        "z": "464d08b033e59563",
+        "d": true,
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 1380,
+        "wires": []
+    },
+    {
+        "id": "ea7e0cae15e69cc1",
+        "type": "json",
+        "z": "464d08b033e59563",
+        "d": true,
+        "name": "",
+        "property": "payload",
+        "action": "str",
+        "pretty": false,
+        "x": 890,
+        "y": 1440,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "41937b421659a69e",
+        "type": "inject",
+        "z": "464d08b033e59563",
+        "d": true,
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"device_id\":\"HRM-ICU-01\",\"patient_id\":\"PAT-001\",\"patient_name\":\"Aslah Kader\",\"timestamp\":\"2026-03-21T12:00:00Z\",\"status\":\"ATTACK DETECTED\",\"is_anomaly\":1,\"anomaly_score\":0.07408149598704983,\"threshold\":0.00968879410638914}",
+        "payloadType": "json",
+        "x": 730,
+        "y": 1460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "feeb0d7abcf0c79f",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "d": true,
+        "name": "function 1",
+        "func": "let p = msg.payload || {};\n\np.ai_explanation = \"No active attack detected.\";\n\nmsg.payload = p;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 560,
+        "y": 1460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "0cfa70ea6b0b347e",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "Normalize Alert",
+        "func": "let p = msg.payload;\n\n// Parse if string\nif (typeof p === \"string\") {\n    try { p = JSON.parse(p); }\n    catch (e) { }\n}\n\np = p || {};\n\n// Read anomaly from ML\nlet isAnomaly =\n    (p.isAnomaly !== undefined) ? p.isAnomaly :\n        (p.is_anomaly !== undefined) ? p.is_anomaly :\n            (p.anomaly !== undefined) ? p.anomaly :\n                0;\n\nisAnomaly = (Number(isAnomaly) === 1) ? 1 : 0;\n\n// 🔥 GET ATTACK STATE\nlet attackEnabled = global.get(\"attackEnabled\") || false;\n\n// 🔥 FORCE NORMAL WHEN ATTACK OFF\nif (!attackEnabled) {\n    isAnomaly = 0;\n}\n\n// Store back\np.is_anomaly = isAnomaly;\np.status = (isAnomaly === 1) ? \"ATTACK DETECTED\" : \"NORMAL\";\n\nmsg.payload = p;\n\n// Debug\nif (isAnomaly === 1) {\n    node.warn(\"🚨 ALERT: ATTACK DETECTED for \" + (p.patient_id || \"UNKNOWN\"));\n} else {\n    node.warn(\"✅ NORMAL for \" + (p.patient_id || \"UNKNOWN\"));\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 40,
+        "wires": [
+            [
+                "a4abd0ff4b59b7fe",
+                "64f5a755014f7ee7",
+                "a464c290768dcb43",
+                "f836a1f073464ad0"
+            ]
+        ]
+    },
+    {
+        "id": "64f5a755014f7ee7",
+        "type": "function",
+        "z": "464d08b033e59563",
+        "name": "AI Router",
+        "func": "let p = msg.payload;\n\nif (typeof p === \"string\") {\n    try { p = JSON.parse(p); } catch (e) {}\n}\np = p || {};\n\nlet key = p.patient_id || p.device_id || (\"row_\" + Date.now());\n\n// Track current status of each patient/device\nlet statusMap = flow.get(\"ai_status_map\") || {};\nstatusMap[key] = p.status || \"NORMAL\";\nflow.set(\"ai_status_map\", statusMap);\n\n// If this message is an attack, send it to Ollama\nif (p.status === \"ATTACK DETECTED\") {\n    msg.originalPayload = p;\n    return [msg, null];\n}\n\n// If no active attacks remain, clear the AI box\nlet anyAttack = Object.values(statusMap).some(v => v === \"ATTACK DETECTED\");\n\nif (!anyAttack) {\n    p.ai_explanation = \"No active attack detected.\";\n    msg.payload = p;\n    return [null, msg];\n}\n\n// Otherwise do nothing\nreturn [null, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 540,
+        "y": 120,
+        "wires": [
+            [
+                "9ec1df6a04fad826"
+            ],
+            [
+                "a80735291372c61b"
+            ]
+        ]
+    },
+    {
+        "id": "86d7dae9ed4b402d",
+        "type": "mqtt-broker",
+        "name": "Hospital Broker",
+        "broker": "localhost",
+        "port": 1883,
+        "tls": "",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "1c0126acaec0d7a2",
+        "type": "ui-group",
+        "name": "Vitals",
+        "page": "be92ae21bc093cb1",
+        "width": 6,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "474090af273b6078",
+        "type": "ui_group",
+        "name": "Anomaly Monitor",
+        "tab": "69acf7385383a47a",
+        "order": 1,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "082bbe48afb9c818",
+        "type": "ui-group",
+        "name": "ML intrusion detection",
+        "page": "be92ae21bc093cb1",
+        "width": 6,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": true,
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "be92ae21bc093cb1",
+        "type": "ui-page",
+        "name": "Hospital Dashboard",
+        "ui": "2c57c8703dc5bb73",
+        "path": "/page2",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "34f2c50393d96c2b",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "className": "",
+        "visible": true,
+        "disabled": false
+    },
+    {
+        "id": "69acf7385383a47a",
+        "type": "ui_tab",
+        "name": "IDS dashboard",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "2c57c8703dc5bb73",
+        "type": "ui-base",
+        "name": "My Dashboard",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "page",
+        "navigationStyle": "default",
+        "titleBarStyle": "default",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 1,
+        "showDisconnectNotification": true,
+        "allowInstall": false
+    },
+    {
+        "id": "34f2c50393d96c2b",
+        "type": "ui-theme",
+        "name": "Default Theme",
+        "colors": {
+            "surface": "#ffffff",
+            "primary": "#0094CE",
+            "bgPage": "#eeeeee",
+            "groupBg": "#ffffff",
+            "groupOutline": "#cccccc"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "4px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "b37b555a8b0196ae",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "@flowfuse/node-red-dashboard": "1.30.1",
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]
