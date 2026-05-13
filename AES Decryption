@@ -1,0 +1,32 @@
+const CryptoJS = global.get("CryptoJS");
+const key = CryptoJS.SHA256("hospital-secure-key");
+
+let p = msg.payload;
+if (Buffer.isBuffer(p)) p = p.toString("utf8");
+if (typeof p === "string") p = JSON.parse(p);
+
+if (!p._encrypted || !p.encryptedData || !p.iv) {
+    node.warn("Skipping non-encrypted message");
+    return null;
+}
+
+const decrypted = CryptoJS.AES.decrypt(
+    {
+        ciphertext: CryptoJS.enc.Base64.parse(p.encryptedData)
+    },
+    key,
+    {
+        iv: CryptoJS.enc.Base64.parse(p.iv),
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+    }
+);
+
+const text = decrypted.toString(CryptoJS.enc.Utf8);
+if (!text) {
+    node.error("Decryption failed");
+    return null;
+}
+
+msg.payload = JSON.parse(text);
+return msg;
