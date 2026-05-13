@@ -1,0 +1,30 @@
+if (!msg.payload || typeof msg.payload !== "object") {
+    node.warn("Invalid payload for encryption");
+    return null;
+}
+
+const CryptoJS = global.get("CryptoJS");
+const key = CryptoJS.SHA256("hospital-secure-key");
+
+const iv = CryptoJS.lib.WordArray.random(16);
+
+const encrypted = CryptoJS.AES.encrypt(
+    JSON.stringify(msg.payload),
+    key,
+    {
+        iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+    }
+);
+
+msg.payload = {
+    _encrypted: true,
+    encryptedData: encrypted.ciphertext.toString(CryptoJS.enc.Base64),
+    iv: iv.toString(CryptoJS.enc.Base64)
+};
+
+return msg;
+
+
+
