@@ -1,0 +1,17 @@
+let p = msg.payload;
+
+if (typeof p === "string") {
+    try { p = JSON.parse(p); } catch (e) {}
+}
+
+const patientId = p.patientid || p.patient_id || "Unknown";
+const patientName = p.patientname || p.patient_name || "Unknown";
+const deviceId = p.deviceid || p.device_id || "Unknown";
+const status = p.status || "Unknown";
+const score = (p.anomalyscore ?? p.anomaly_score ?? "N/A");
+
+msg.originalPayload = p;
+msg.filename = "//Users/zakariazanhar//Downloads//Capstone2//prompt.txt"
+msg.payload = `Explain this hospital IDS alert in one short sentence for hospital staff. Patient ID ${patientId}, patient name ${patientName}, device ID ${deviceId}, status ${status}, anomaly score ${score}, mention it has a high anomaly score`;
+
+return msg;
