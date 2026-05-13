@@ -1,0 +1,41 @@
+let p = msg.payload;
+
+// Parse if string
+if (typeof p === "string") {
+    try { p = JSON.parse(p); }
+    catch (e) { }
+}
+
+p = p || {};
+
+// Read anomaly from ML
+let isAnomaly =
+    (p.isAnomaly !== undefined) ? p.isAnomaly :
+        (p.is_anomaly !== undefined) ? p.is_anomaly :
+            (p.anomaly !== undefined) ? p.anomaly :
+                0;
+
+isAnomaly = (Number(isAnomaly) === 1) ? 1 : 0;
+
+// 🔥 GET ATTACK STATE
+let attackEnabled = global.get("attackEnabled") || false;
+
+// 🔥 FORCE NORMAL WHEN ATTACK OFF
+if (!attackEnabled) {
+    isAnomaly = 0;
+}
+
+// Store back
+p.is_anomaly = isAnomaly;
+p.status = (isAnomaly === 1) ? "ATTACK DETECTED" : "NORMAL";
+
+msg.payload = p;
+
+// Debug
+if (isAnomaly === 1) {
+    node.warn("🚨 ALERT: ATTACK DETECTED for " + (p.patient_id || "UNKNOWN"));
+} else {
+    node.warn("✅ NORMAL for " + (p.patient_id || "UNKNOWN"));
+}
+
+return msg;
